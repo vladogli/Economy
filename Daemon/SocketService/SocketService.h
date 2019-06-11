@@ -11,7 +11,7 @@ public:
 SocketService(
     ::std::string, bool,
     uint32_t, uint32_t,
-    bool,
+    bool, bool,
     ::std::string,
     ::std::string);
 };

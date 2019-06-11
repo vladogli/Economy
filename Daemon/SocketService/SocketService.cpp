@@ -5,11 +5,11 @@ SocketService::SocketService(
     bool safeMoneyEnabled,
     uint32_t safeMoneyDelay,
     uint32_t port,
-    bool isSharded,
+    bool isShardedEconomy, bool isShardedServers,
     ::std::string RSA_EFP,
     ::std::string RSA_ESP) {
     this->db = new DataBase(DataBaseName);
-     if(isSharded) {
+     if(isShardedServers) {
          ::std::cout << "Loading RSA\n";
          this->encrypt = new RSA(RSA_EFP, RSA_ESP);
      }

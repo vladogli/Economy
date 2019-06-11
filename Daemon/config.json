@@ -3,7 +3,8 @@
     "safeMoney": true, 
     "safeMoneyDelay": 7200,
     "port": 10001,
-    "sharded": true,
-    "RSA_ENCRYPTION_FIRST_PRIME": "3557",
-    "RSA_ENCRYPTION_SECOND_PRIME": "2579"
+    "shardedEconomy": true,
+    "shardedServers": true,
+    "RSA_ENCRYPTION_FIRST_PRIME": "29",
+    "RSA_ENCRYPTION_SECOND_PRIME": "31"
 }
