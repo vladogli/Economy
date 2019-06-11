@@ -4,6 +4,8 @@
 #include <gmpxx.h>
 #include <assert.h>
 #include <iostream>
+#include "../json.hpp"
+#include <string>
 #define __RSA_DEBUG
 
 class RSA {
@@ -12,7 +14,7 @@ class RSA {
     t, // (p-1)(q-1) == pq-q-p+1
     e,
     d;
-
+    mpz_t buf;
     void InitStr(mpz_t& ref, const ::std::string value) {
         mpz_init(ref);
         int flag = mpz_set_str(ref,value.c_str(),10);
@@ -23,11 +25,9 @@ class RSA {
             throw 1;
         }
     }
-    
 public:
     RSA(const ::std::string first,const ::std::string second) {
         InitStr(p,first); InitStr(q,second);
-
         mpz_mul(n, p, q); // n = p * q
 
         mpz_init(t);
@@ -42,10 +42,11 @@ public:
 
         mpz_init(d);
         mpz_invert(d, e, t);
-        mpz_t buf;
+
         mpz_init(buf);
         mpz_mul(buf, d,e);
         mpz_tdiv_r(buf,buf,t);
+
         if(mpz_cmp_ui(buf, 1) != 0) {
             ::std::cout << "RSA CRITICAL ERROR. Something went wrong. Probably problem with primal numbers.";
             throw 1;
@@ -69,16 +70,47 @@ public:
 
         ::std::cout << "\nPublic Exponent: ";
         mpz_out_str(stdout, 10, e);
-        std::cout << std::endl;
+        ::std::cout << ::std::endl;
 
     }
-    void Decrypt(uint8_t* message, const uint64_t size) {
-      //
+    ::std::string Encrypt(const char *message, const uint64_t size) {
+        if(message == nullptr) {
+            throw 0;
+        }
+        nlohmann::json j;
+        ::std::vector<::std::string> vec;
+        for(int i = 0; i < size; i++) {
+            mpz_set_ui(buf, message[i]);
+            mpz_powm(buf,buf,e,n); 
+            mpz_tdiv_r(buf,buf,n);
+            char *str = mpz_get_str(nullptr, 62, buf);
+            vec.push_back(::std::string(str));
+            if(str!=nullptr) {
+                free(str);
+            }
+        }
+        j["data"] = vec;
+        return j.dump();
+    }
+    void Decrypt(char *&result, const ::std::string message) {
+        nlohmann::json j = nlohmann::json::parse(message);
+        size_t size = j["data"].size();
+        result = (char*)malloc(size*sizeof(char));
+        if(result == nullptr) {
+            throw 1;
+        }
+        for(int i = 0; i < size; i++) {
+            ::std::string str = j["data"][i].get<::std::string>();
+            mpz_set_str(buf, str.c_str(),62);
+            mpz_powm(buf,buf,d,n);
+            result[i] = mpz_get_ui(buf);
+        }
     }
     ~RSA(){
         mpz_clear(p); mpz_clear(q);
         mpz_clear(n); mpz_clear(t);
         mpz_clear(e); mpz_clear(d);
+        mpz_clear(buf);
     }
 };
 #endif
