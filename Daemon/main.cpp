@@ -4,7 +4,7 @@
 #include "SocketService/SocketService.h"
 #include <fstream>
 #include "json.hpp"
-
+#include <string>
 int main() {
     ::std::cout << "Starting...\n";
     ::std::ifstream configFile("config.json");
@@ -23,5 +23,17 @@ int main() {
         config["shardedServers"].get<bool>(),
         config["RSA_ENCRYPTION_FIRST_PRIME"].get<::std::string>(),
         config["RSA_ENCRYPTION_SECOND_PRIME"].get<::std::string>());
-  //  ss.Join();
+    std::string encrypted;
+    ::std::string input;
+    ::std::cout << "Enter your message: ";
+    ::std::cin >> input;
+    encrypted = ss.rsa->Encrypt(input.c_str(), input.size());
+
+    char* decrypted;
+    ::std::cout << "Encrypted message: ";
+    std::cout <<encrypted << ::std::endl;
+
+    ss.rsa->Decrypt(decrypted, encrypted);
+    
+    ::std::cout << "Decrypted message: " << ::std::string(decrypted) << std::endl;
 } 
