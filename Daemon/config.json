@@ -5,6 +5,6 @@
     "port": 10001,
     "shardedEconomy": true,
     "shardedServers": true,
-    "RSA_ENCRYPTION_FIRST_PRIME": "29",
-    "RSA_ENCRYPTION_SECOND_PRIME": "31"
+    "RSA_ENCRYPTION_FIRST_PRIME": "61",
+    "RSA_ENCRYPTION_SECOND_PRIME": "53"
 }
