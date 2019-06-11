@@ -3,11 +3,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "../DataBase/DataBase.h"
-#include "RSA/RSA.h"
+#include "Cryptography.h"
 class SocketService {
-    DataBase *db = nullptr;
-    RSA *encrypt = nullptr;
 public:
+    DataBase *db = nullptr;
+    RSA *rsa = nullptr;
 SocketService(
     ::std::string, bool,
     uint32_t, uint32_t,

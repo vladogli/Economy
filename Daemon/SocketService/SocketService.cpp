@@ -11,6 +11,6 @@ SocketService::SocketService(
     this->db = new DataBase(DataBaseName);
      if(isShardedServers) {
          ::std::cout << "Loading RSA\n";
-         this->encrypt = new RSA(RSA_EFP, RSA_ESP);
+         this->rsa = new RSA(RSA_EFP, RSA_ESP);
      }
 }
