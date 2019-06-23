@@ -1,165 +1,394 @@
-namespace Cryptography {
-    namespace AES {
-        void AddRoundKey(uint8_t **state, uint8_t *key) {
-            for(uint8_t i = 0; i < 4; i++) {
-                for(uint8_t j = 0; j < 4; j++) {
-                    state[i][j] = state[i][j] ^ key[i + 4 * j];
-                }
-            }
-        }
-        void SubBytes(uint8_t **state) {
-            for(uint8_t i = 0; i < 4; i++) {
-                for(uint8_t j = 0; j < 4; j++) {
-                    state[i][j] = Sbox[state[i][j]];
-                }
-            }
-        }
-        void ShiftRow(uint8_t **state, uint8_t column, uint8_t shift) {
-            for(uint8_t i = 0; i < 3; i+=shift) {
-                state[column][i] = state[column][i+shift];
-            }
-        }
-        void ShiftRows(uint8_t **state) {
-            ShiftRow(state, 1, 1); ShiftRow(state, 2, 2); ShiftRow(state, 3, 3);
-        }
-        uint8_t GaloisFieldMul256(uint8_t a, uint8_t b) {
-            uint8_t p = 0;
-            for(uint8_t i = 0; i < 8; i++) {
-                if((b & 1) != 0) {
-                    p^=a;
-                }
-                bool high_bit_set = (a & 0x80) != 0;
-                a <<= 1;
-                if(high_bit_set) {
-                    a ^= 0x11b;
-                }
-                b >>= 1;
-            }
-            return p;
-        }
-        void MixColumns(uint8_t **state) {
-            for(uint8_t i = 0; i < 4; i++) {
-#define mul GaloisFieldMul256
-                state[i][0] = mul(0x02, state[i][0]) ^ mul(0x03, state[i][1]) ^ state[i][2] ^ state[i][3];
-                state[i][1] = state[i][0] ^ mul(0x02, state[i][1]) ^ mul(0x03, state[i][2]) ^ state[i][3];
-                state[i][2] = state[i][0] ^ state[i][1] ^ mul(0x02, state[i][2]) ^ mul(0x03, state[i][3]);
-                state[i][3] = mul(0x03, state[i][0]) ^ state[i][1] ^ state[i][2] ^ mul(0x02, state[i][3]);
-#undef mul
-            }
-        }
+#include "AES.h"
+#define Nb 4
 
-        void InvSubBytes(uint8_t **state) {
-            for(uint8_t i = 0; i < 4; i++) {
-                for(uint8_t j = 0; j < 4; j++) {
-                    state[i][j] = InvSbox[state[i][j]];
-                }
-            }
-        }
-        void InvShiftRows(uint8_t **state) {
-            ShiftRow(state, 1, 3); ShiftRow(state, 2, 2); ShiftRow(state, 3, 1);
-        }
-        void InvMixColumns(uint8_t **state) {
-           for(uint8_t i = 0; i < 4; i++) {
-                for(uint8_t j = 0; j < 4; j++) {
-#define mul GaloisFieldMul256
-                state[i][0] = mul(0x0e, state[i][0]) ^ mul(0x0b, state[i][1]) ^  mul(0x0d, state[i][2]) ^  mul(0x09, state[i][3]);
-                state[i][1] = mul(0x09, state[i][0]) ^ mul(0x0e, state[i][1]) ^  mul(0x0b, state[i][2]) ^  mul(0x0d, state[i][3]);
-                state[i][2] = mul(0x0d, state[i][0]) ^ mul(0x09, state[i][1]) ^  mul(0x0e, state[i][2]) ^  mul(0x0b, state[i][3]);
-                state[i][3] = mul(0x0b, state[i][0]) ^ mul(0x0d, state[i][1]) ^  mul(0x09, state[i][2]) ^  mul(0x0e, state[i][3]);
-#undef mul
-                }
-            }
-        }
-        void KeyExpansion(uint8_t* keySchedule, uint8_t* key) {
-             memcpy(keySchedule, key, sizeof(uint8_t) * 4 * Nk);
-             uint8_t *buf = (uint8_t*)malloc(4);
+#define Nk 8
+#define Nr 14
 
-             for(uint16_t i = 4 * Nk; i < 16 * (Nr + 1); i += 4) {
-                memcpy(buf, keySchedule + i - 4, 4);
-                if(i / 4 % Nk == 0) {
-                    ::std::reverse(buf, buf + 3);
-                    for(int j=0;j<4;j++) {
-                        buf[j] = Sbox[buf[j]];
-                    }
-                    for(uint8_t j = 0; j < 4; j++) {
-                        buf[j] ^= Rcon[i / Nk][j];
-                    }
-                }
-                else if (Nk > 6 && i / 4 % Nk == 4) {
-                    for(int j=0;j<4;j++) {
-                        buf[j] = Sbox[buf[j]];
-                    }
-                }
-                for(int j = 0; j < 4; j++) {
-                    keySchedule[i + j] =  keySchedule[i + j - 4 * Nk] ^ buf[j];
-                }
-             }
-             free(buf);
-        }
-        void EncryptBlock(uint8_t **state, uint8_t *keySchedule) {
-            AddRoundKey(state, keySchedule);
-            for(uint8_t i = 0; i < Nr; i++) {
-                SubBytes(state);
-                ShiftRows(state);
-                MixColumns(state);
-                AddRoundKey(state, keySchedule + i * 16);
-            }
-            SubBytes(state);
-            ShiftRows(state);
-            AddRoundKey(state, keySchedule + Nr * 16);
-        }
-        void DecryptBlock(uint8_t **state, uint8_t *keySchedule) {
-            AddRoundKey(state, keySchedule + Nr * 16);
-            for(int i = Nr - 1; i >= 1; i--) {
-                InvSubBytes(state);
-                InvShiftRows(state);
-                AddRoundKey(state, keySchedule + i * 16);
-                InvMixColumns(state);
-            }
+constexpr uint8_t blockBytesLen = 4 * Nb * sizeof(uint8_t);
+namespace Cryptography::AES {
 
-            InvSubBytes(state);
-            InvShiftRows(state);
-            AddRoundKey(state, keySchedule);
-        }
-        size_t Encrypt(const char* in, size_t inLen, char** out, const char* key) {
-            size_t outLen = ceil(double(inLen) / 32) * 32;
-            (*out) = (char*)malloc(outLen);
-            memset((*out),0,outLen);
-            memcpy((*out),in,inLen);
-            uint8_t *keySchedule = (uint8_t*)malloc(16 * (Nr + 1));
-            KeyExpansion(keySchedule, (uint8_t*)key);
-            uint8_t **state = (uint8_t**)malloc(sizeof(uint8_t*) * 4);
-            for(size_t i = 0; i < outLen; i += 32) {
-                for(uint8_t j = 0; j < 4; j++) {
-                    state[j] = (uint8_t*)((*out) + i+j*4);
-                }
-                EncryptBlock(state, keySchedule);
-            }
-            free(state);
-            free(keySchedule);
-            return (inLen / 32) * 32;
-        }
-        size_t Decrypt(const char* in, size_t inLen, char** out, const char* key) {
-            size_t outLen = ceil(double(inLen) / 32) * 32;
-            (*out) = (char*)malloc(outLen);
-            memset((*out),0,outLen);
-            memcpy((*out),in,inLen);
-            uint8_t *keySchedule = (uint8_t*)malloc(16 * (Nr + 1));
-            KeyExpansion(keySchedule, (uint8_t*)key);
-            uint8_t **state = (uint8_t**)malloc(sizeof(uint8_t*) * 4);
-            for(size_t i = 0; i < outLen; i += 32) {
-                for(uint8_t j = 0; j < 4; j++) {
-                    state[j] = (uint8_t*)((*out) + i+j*4);
-                }
-                DecryptBlock(state, keySchedule);
-            }
-            free(state);
-            free(keySchedule);
-            return (inLen / 32) * 32;
-        }
-    }
+uint8_t * EncryptECB(uint8_t in[], uint32_t inLen, uint8_t key[], uint32_t &outLen) {
+  outLen = GetPaddingLength(inLen);
+  uint8_t *alignIn  = PaddingNulls(in, inLen, outLen);
+  uint8_t *out = (uint8_t*)malloc(outLen);
+  for (uint32_t i = 0; i < outLen; i+= blockBytesLen) {
+    EncryptBlock(alignIn + i, out + i, key);
+  }
+  delete[] alignIn;
+  return out;
 }
 
-#undef KEY_SIZE
-#undef Nk
-#undef Nr
+uint8_t * DecryptECB(uint8_t in[], uint32_t inLen, uint8_t key[], uint32_t &outLen) {
+  outLen = GetPaddingLength(inLen);
+  uint8_t *alignIn  = PaddingNulls(in, inLen, outLen);
+  uint8_t *out = (uint8_t*)malloc(outLen);
+  for (uint32_t i = 0; i < outLen; i+= blockBytesLen) {
+    DecryptBlock(alignIn + i, out + i, key);
+  }
+  delete[] alignIn;
+  return out;
+}
+
+
+uint8_t *EncryptCBC(uint8_t in[], uint32_t inLen, uint8_t key[], uint8_t * iv, uint32_t &outLen) {
+  outLen = GetPaddingLength(inLen);
+  uint8_t *alignIn  = PaddingNulls(in, inLen, outLen);
+  uint8_t *out = (uint8_t*)malloc(outLen);
+  uint8_t *block = new uint8_t[blockBytesLen];
+  memcpy(block, iv, blockBytesLen);
+  for (uint32_t i = 0; i < outLen; i+= blockBytesLen) {
+    XorBlocks(block, alignIn + i, block, blockBytesLen);
+    EncryptBlock(block, out + i, key);
+  }
+  delete[] block;
+  delete[] alignIn;
+  return out;
+}
+
+uint8_t *DecryptCBC(uint8_t in[], uint32_t inLen, uint8_t key[], uint8_t * iv, uint32_t &outLen) {
+  outLen = GetPaddingLength(inLen);
+  uint8_t *alignIn  = PaddingNulls(in, inLen, outLen);
+  uint8_t *out = (uint8_t*)malloc(outLen);
+  uint8_t *block = new uint8_t[blockBytesLen];
+  memcpy(block, iv, blockBytesLen);
+  for (uint32_t i = 0; i < outLen; i+= blockBytesLen) {
+    DecryptBlock(alignIn + i, out + i, key);
+    XorBlocks(block, out + i, out + i, blockBytesLen);
+  }
+  delete[] block;
+  delete[] alignIn;
+  return out;
+}
+
+uint8_t *EncryptCFB(uint8_t in[], uint32_t inLen, uint8_t key[], uint8_t * iv, uint32_t &outLen) {
+  outLen = GetPaddingLength(inLen);
+  uint8_t *alignIn  = PaddingNulls(in, inLen, outLen);
+  uint8_t *out = (uint8_t*)malloc(outLen);
+  uint8_t *block = new uint8_t[blockBytesLen];
+  uint8_t *encryptedBlock = new uint8_t[blockBytesLen];
+  memcpy(block, iv, blockBytesLen);
+  for (uint32_t i = 0; i < outLen; i+= blockBytesLen) {
+    EncryptBlock(block, encryptedBlock, key);
+    XorBlocks(alignIn + i, encryptedBlock, out + i, blockBytesLen);
+    memcpy(block, out + i, blockBytesLen);
+  }
+  delete[] block;
+  delete[] encryptedBlock;
+  delete[] alignIn;
+  return out;
+}
+
+uint8_t *DecryptCFB(uint8_t in[], uint32_t inLen, uint8_t key[], uint8_t * iv, uint32_t &outLen) {
+  outLen = GetPaddingLength(inLen);
+  uint8_t *alignIn  = PaddingNulls(in, inLen, outLen);
+  uint8_t *out = (uint8_t*)malloc(outLen);
+  uint8_t *block = new uint8_t[blockBytesLen];
+  uint8_t *encryptedBlock = new uint8_t[blockBytesLen];
+  memcpy(block, iv, blockBytesLen);
+  for (uint32_t i = 0; i < outLen; i+= blockBytesLen) {
+    EncryptBlock(block, encryptedBlock, key);
+    XorBlocks(alignIn + i, encryptedBlock, out + i, blockBytesLen);
+    memcpy(block, alignIn + i, blockBytesLen);
+  }
+  delete[] block;
+  delete[] encryptedBlock;
+  delete[] alignIn;
+  return out;
+}
+
+uint8_t * PaddingNulls(uint8_t in[], uint32_t inLen, uint32_t alignLen) {
+  uint8_t * alignIn = new uint8_t[alignLen];
+  memcpy(alignIn, in, inLen);
+  return alignIn;
+}
+
+uint32_t GetPaddingLength(uint32_t len) {
+  return (len / blockBytesLen) * blockBytesLen;
+}
+
+void EncryptBlock(uint8_t in[], uint8_t out[], uint8_t key[]) {
+  uint8_t *w = new uint8_t[4 * Nb * (Nr + 1)];
+  KeyExpansion(key, w);
+  uint8_t **state = new uint8_t *[4];
+  state[0] = new uint8_t[4 * Nb];
+  int i, j, round;
+  for (i = 0; i < 4; i++) {
+    state[i] = state[0] + Nb * i;
+  }
+
+
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < Nb; j++) {
+      state[i][j] = in[i + 4 * j];
+    }
+  }
+
+  AddRoundKey(state, w);
+
+  for (round = 1; round <= Nr - 1; round++) {
+    SubBytes(state);
+    ShiftRows(state);
+    MixColumns(state);
+    AddRoundKey(state, w + round * 4 * Nb);
+  }
+
+  SubBytes(state);
+  ShiftRows(state);
+  AddRoundKey(state, w + Nr * 4 * Nb);
+
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < Nb; j++) {
+      out[i + 4 * j] = state[i][j];
+    }
+  }
+
+  delete[] state[0];
+  delete[] state;
+  delete[] w;
+}
+
+void DecryptBlock(uint8_t in[], uint8_t out[], uint8_t key[]) {
+  uint8_t *w = new uint8_t[4 * Nb * (Nr + 1)];
+  KeyExpansion(key, w);
+  uint8_t **state = new uint8_t *[4];
+  state[0] = new uint8_t[4 * Nb];
+  int i, j, round;
+  for (i = 0; i < 4; i++) {
+    state[i] = state[0] + Nb * i;
+  }
+
+
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < Nb; j++) {
+      state[i][j] = in[i + 4 * j];
+    }
+  }
+
+  AddRoundKey(state, w + Nr * 4 * Nb);
+
+  for (round = Nr - 1; round >= 1; round--) {
+    InvSubBytes(state);
+    InvShiftRows(state);
+    AddRoundKey(state, w + round * 4 * Nb);
+    InvMixColumns(state);
+  }
+
+  InvSubBytes(state);
+  InvShiftRows(state);
+  AddRoundKey(state, w);
+
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < Nb; j++) {
+      out[i + 4 * j] = state[i][j];
+    }
+  }
+
+  delete[] state[0];
+  delete[] state;
+  delete[] w;
+}
+
+
+void SubBytes(uint8_t **state) {
+  int i, j;
+  uint8_t t;
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < Nb; j++) {
+      t = state[i][j];
+      state[i][j] = sbox[t / 16][t % 16];
+    }
+  }
+
+}
+
+void ShiftRow(uint8_t **state, int i, int n) { // shift row i on n positions
+  uint8_t t;
+  int k, j;
+  for (k = 0; k < n; k++) {
+    t = state[i][0];
+    for (j = 0; j < Nb - 1; j++) {
+      state[i][j] = state[i][j + 1];
+    }
+    state[i][Nb - 1] = t;
+  }
+}
+
+void ShiftRows(uint8_t **state) {
+  ShiftRow(state, 1, 1);
+  ShiftRow(state, 2, 2);
+  ShiftRow(state, 3, 3);
+}
+
+uint8_t xtime(uint8_t b) { // multiply on x
+  uint8_t mask = 0x80, m = 0x1b;
+  uint8_t high_bit = b & mask;
+  b = b << 1;
+  if (high_bit) {    // mod m(x)
+    b = b ^ m;
+  }
+  return b;
+}
+
+uint8_t mul_bytes(uint8_t a, uint8_t b) {
+  uint8_t c = 0, mask = 1, bit, d;
+  int i, j;
+  for (i = 0; i < 8; i++) {
+    bit = b & mask;
+    if (bit) {
+      d = a;
+      for (j = 0; j < i; j++) {    // multiply on x^i
+        d = xtime(d);
+      }
+      c = c ^ d;    // xor to result
+    }
+    b = b >> 1;
+  }
+  return c;
+}
+
+void MixColumns(uint8_t **state) {
+  uint8_t s[4], s1[4];
+  int i, j;
+
+  for (j = 0; j < Nb; j++) {
+    for (i = 0; i < 4; i++) {
+      s[i] = state[i][j];
+    }
+
+    s1[0] = mul_bytes(0x02, s[0]) ^ mul_bytes(0x03, s[1]) ^ s[2] ^ s[3];
+    s1[1] = s[0] ^ mul_bytes(0x02, s[1]) ^ mul_bytes(0x03, s[2]) ^ s[3];
+    s1[2] = s[0] ^ s[1] ^ mul_bytes(0x02, s[2]) ^ mul_bytes(0x03, s[3]);
+    s1[3] = mul_bytes(0x03, s[0]) ^ s[1] ^ s[2] ^ mul_bytes(0x02, s[3]);
+    for (i = 0; i < 4; i++) {
+      state[i][j] = s1[i];
+    }
+
+  }
+
+}
+
+void AddRoundKey(uint8_t **state, uint8_t *key) {
+  int i, j;
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < Nb; j++) {
+      state[i][j] = state[i][j] ^ key[i + 4 * j];
+    }
+  }
+}
+
+void SubWord(uint8_t *a) {
+  int i;
+  for (i = 0; i < 4; i++) {
+    a[i] = sbox[a[i] / 16][a[i] % 16];
+  }
+}
+
+void RotWord(uint8_t *a) {
+  uint8_t c = a[0];
+  a[0] = a[1];
+  a[1] = a[2];
+  a[2] = a[3];
+  a[3] = c;
+}
+
+void XorWords(uint8_t *a, uint8_t *b, uint8_t *c) {
+  int i;
+  for (i = 0; i < 4; i++) {
+    c[i] = a[i] ^ b[i];
+  }
+}
+
+void Rcon(uint8_t * a, int n) {
+  int i;
+  uint8_t c = 1;
+  for (i = 0; i < n - 1; i++) {
+    c = xtime(c);
+  }
+
+  a[0] = c;
+  a[1] = a[2] = a[3] = 0;
+}
+
+void KeyExpansion(uint8_t key[], uint8_t w[]) {
+  uint8_t *temp = new uint8_t[4];
+  uint8_t *rcon = new uint8_t[4];
+
+  int i = 0;
+  while (i < 4 * Nk) {
+    w[i] = key[i];
+    i++;
+  }
+
+  i = 4 * Nk;
+  while (i < 4 * Nb * (Nr + 1)) {
+    temp[0] = w[i - 4 + 0];
+    temp[1] = w[i - 4 + 1];
+    temp[2] = w[i - 4 + 2];
+    temp[3] = w[i - 4 + 3];
+
+    if (i / 4 % Nk == 0) {
+        RotWord(temp);
+        SubWord(temp);
+        Rcon(rcon, i / (Nk * 4));
+      XorWords(temp, rcon, temp);
+    }
+    else if (Nk > 6 && i / 4 % Nk == 4) {
+      SubWord(temp);
+    }
+
+    w[i + 0] = w[i - 4 * Nk] ^ temp[0];
+    w[i + 1] = w[i + 1 - 4 * Nk] ^ temp[1];
+    w[i + 2] = w[i + 2 - 4 * Nk] ^ temp[2];
+    w[i + 3] = w[i + 3 - 4 * Nk] ^ temp[3];
+    i += 4;
+  }
+
+  delete []rcon;
+  delete []temp;
+
+}
+
+
+void InvSubBytes(uint8_t **state) {
+  int i, j;
+  uint8_t t;
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < Nb; j++) {
+      t = state[i][j];
+      state[i][j] = inv_sbox[t / 16][t % 16];
+    }
+  }
+}
+
+void InvMixColumns(uint8_t **state) {
+  uint8_t s[4], s1[4];
+  int i, j;
+
+  for (j = 0; j < Nb; j++) {
+    for (i = 0; i < 4; i++) {
+      s[i] = state[i][j];
+    }
+    s1[0] = mul_bytes(0x0e, s[0]) ^ mul_bytes(0x0b, s[1]) ^ mul_bytes(0x0d, s[2]) ^ mul_bytes(0x09, s[3]);
+    s1[1] = mul_bytes(0x09, s[0]) ^ mul_bytes(0x0e, s[1]) ^ mul_bytes(0x0b, s[2]) ^ mul_bytes(0x0d, s[3]);
+    s1[2] = mul_bytes(0x0d, s[0]) ^ mul_bytes(0x09, s[1]) ^ mul_bytes(0x0e, s[2]) ^ mul_bytes(0x0b, s[3]);
+    s1[3] = mul_bytes(0x0b, s[0]) ^ mul_bytes(0x0d, s[1]) ^ mul_bytes(0x09, s[2]) ^ mul_bytes(0x0e, s[3]);
+
+    for (i = 0; i < 4; i++)
+    {
+      state[i][j] = s1[i];
+    }
+  }
+}
+
+void InvShiftRows(uint8_t **state) {
+  ShiftRow(state, 1, Nb - 1);
+  ShiftRow(state, 2, Nb - 2);
+  ShiftRow(state, 3, Nb - 3);
+}
+
+void XorBlocks(uint8_t *a, uint8_t * b, uint8_t *c, uint32_t len) {
+  for (uint32_t i = 0; i < len; i++) {
+    c[i] = a[i] ^ b[i];
+  }
+}
+}
