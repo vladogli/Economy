@@ -1,5 +1,5 @@
 #include "CSPNG.h"
-    void Cryptography::GetNoise(char* dest, size_t size) {
+    void Cryptography::GetNoise(uint8_t* dest, size_t size) {
         ::std::system( "/usr/bin/top -b -n 1 | /usr/bin/head -n5 > /tmp/result.txt" );
         ::std::ostringstream oss;
         oss <<  ::std::ifstream("/tmp/result.txt").rdbuf();
@@ -14,11 +14,11 @@
         if(a.size() < size) {
             memcpy(dest,a.c_str(), a.size());
         } else {
-            memcpy(dest,a.c_str(), size);
+            memcpy(dest,a.c_str(), size);   
         }
     }
     void ::Cryptography::CSPNG::Load() {
-        Noise = (char*)malloc(0x41);
+        Noise = (uint8_t*)malloc(0x41);
         GetNoise(Noise, 0x41);
     }
     void ::Cryptography::CSPNG::Unload() {
@@ -30,7 +30,7 @@
     }
     template<typename _T>
     _T Cryptography::CSPNG::get() {
-        char* buf = nullptr;
+        uint8_t* buf = nullptr;
         SHA::SHA256(&buf, Noise, 0x41);
         free(Noise);
         Noise = buf;
@@ -47,11 +47,11 @@
         return returnValue;
     }
     ::std::string Cryptography::CSPNG::getStr() {
-        char* buf = nullptr;
+        uint8_t* buf = nullptr;
         SHA::SHA256(&buf, Noise, 0x41);
         free(Noise);
         Noise = buf;
-        return ::std::string(Noise);
+        return ::std::string((char*)(Noise));
     }
     uint32_t ::Cryptography::CSPNG::operator()() {
         return get<uint32_t>();

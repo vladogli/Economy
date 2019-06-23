@@ -4,10 +4,10 @@
 #include <sstream>
 #include <fstream>
 namespace Cryptography {
-    void GetNoise(char* dest, size_t size);
+    void GetNoise(uint8_t* dest, size_t size);
     // Cryptographycally secure pseudorandom number generator
     class CSPNG {
-        char* Noise = nullptr;
+        uint8_t* Noise = nullptr;
         void Load();
         void Unload();
     public:
