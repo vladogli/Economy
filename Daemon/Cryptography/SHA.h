@@ -27,24 +27,21 @@ namespace Cryptography {
             };
             class sha256 {
             protected:
-                typedef unsigned char uint8;
-                typedef unsigned int uint32;
-                typedef unsigned long long uint64;
-                static const unsigned int SHA224_256_BLOCK_SIZE = 64;
+                static const uint32_t SHA224_256_BLOCK_SIZE = 64;
             public:
                 void init();
-                void update(const unsigned char *message, unsigned int len);
-                void final(unsigned char *digest);
-                static const unsigned int DIGEST_SIZE = 32;
+                void update(const uint8_t *message, uint32_t len);
+                void final(uint8_t *digest);
+                static const uint32_t DIGEST_SIZE = 32;
             
             protected:
-                void transform(const unsigned char *message, unsigned int block_nb);
-                unsigned int m_tot_len;
-                unsigned int m_len;
-                unsigned char m_block[2*SHA224_256_BLOCK_SIZE];
-                uint32 m_h[8];
+                void transform(const uint8_t *message, uint32_t block_nb);
+                uint32_t m_tot_len;
+                uint32_t m_len;
+                uint8_t m_block[2*SHA224_256_BLOCK_SIZE];
+                uint32_t m_h[8];
             };
-        uint32_t SHA256(char** dest, char* input, size_t input_size);
+        size_t SHA256(uint8_t** dest, uint8_t* input, size_t input_size);
     }
 }
 #include "SHA.cpp"

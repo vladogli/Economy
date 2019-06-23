@@ -10,17 +10,17 @@
 #define SHA256_F4(x) (SHA2_ROTR(x, 17) ^ SHA2_ROTR(x, 19) ^ SHA2_SHFR(x, 10))
 #define SHA2_UNPACK32(x, str)                 \
 {                                             \
-    *((str) + 3) = (uint8) ((x)      );       \
-    *((str) + 2) = (uint8) ((x) >>  8);       \
-    *((str) + 1) = (uint8) ((x) >> 16);       \
-    *((str) + 0) = (uint8) ((x) >> 24);       \
+    *((str) + 3) = (uint8_t) ((x)      );       \
+    *((str) + 2) = (uint8_t) ((x) >>  8);       \
+    *((str) + 1) = (uint8_t) ((x) >> 16);       \
+    *((str) + 0) = (uint8_t) ((x) >> 24);       \
 }
 #define SHA2_PACK32(str, x)                   \
 {                                             \
-    *(x) =   ((uint32) *((str) + 3)      )    \
-           | ((uint32) *((str) + 2) <<  8)    \
-           | ((uint32) *((str) + 1) << 16)    \
-           | ((uint32) *((str) + 0) << 24);   \
+    *(x) =   ((uint32_t) *((str) + 3)      )    \
+           | ((uint32_t) *((str) + 2) <<  8)    \
+           | ((uint32_t) *((str) + 1) << 16)    \
+           | ((uint32_t) *((str) + 0) << 24);   \
 }
         void ::Cryptography::SHA::sha256::init() {
             for(int i=0;i<8;i++) {
@@ -29,10 +29,10 @@
             m_len = 0;
             m_tot_len = 0;
         }
-        void ::Cryptography::SHA::sha256::update(const unsigned char *message, unsigned int len) {
-            unsigned int block_nb;
-            unsigned int new_len, rem_len, tmp_len;
-            const unsigned char *shifted_message;
+        void ::Cryptography::SHA::sha256::update(const uint8_t *message, uint32_t len) {
+            uint32_t block_nb;
+            uint32_t new_len, rem_len, tmp_len;
+            const uint8_t *shifted_message;
             tmp_len = SHA224_256_BLOCK_SIZE - m_len;
             rem_len = len < tmp_len ? len : tmp_len;
             memcpy(&m_block[m_len], message, rem_len);
@@ -50,11 +50,11 @@
             m_len = rem_len;
             m_tot_len += (block_nb + 1) << 6;
         }
-        void ::Cryptography::SHA::sha256::transform(const unsigned char *message, unsigned int block_nb) {
+        void ::Cryptography::SHA::sha256::transform(const uint8_t *message, uint32_t block_nb) {
             uint32_t w[64];
             uint32_t wv[8];
             uint32_t t1, t2;
-            const unsigned char *sub_block;
+            const uint8_t *sub_block;
             int i;
             int j;
             for (i = 0; i < (int) block_nb; i++) {
@@ -86,10 +86,10 @@
                 }
             }
         }
-        void ::Cryptography::SHA::sha256::final(unsigned char *digest) {
-            unsigned int block_nb;
-            unsigned int pm_len;
-            unsigned int len_b;
+        void ::Cryptography::SHA::sha256::final(uint8_t *digest) {
+            uint32_t block_nb;
+            uint32_t pm_len;
+            uint32_t len_b;
             int i;
             block_nb = (1 + ((SHA224_256_BLOCK_SIZE - 9)
                             < (m_len % SHA224_256_BLOCK_SIZE)));
@@ -103,7 +103,8 @@
                 SHA2_UNPACK32(m_h[i], &digest[i << 2]);
             }
         }
-        uint32_t  ::Cryptography::SHA::SHA256(char** dest, char* input, size_t input_size) {
+#include <iostream>
+        size_t  ::Cryptography::SHA::SHA256(uint8_t** dest, uint8_t* input, size_t input_size) {
             unsigned char digest[::Cryptography::SHA::sha256::DIGEST_SIZE];
             memset(digest,0,::Cryptography::SHA::sha256::DIGEST_SIZE);
         
@@ -117,11 +118,10 @@
             for (int i = 0; i < ::Cryptography::SHA::sha256::DIGEST_SIZE; i++)
                 sprintf(buf+i*2, "%02x", digest[i]);
             if((*dest) !=nullptr) {
-                free(dest);
+                throw "SHA256(): dest isn't a nullptr";
             }
-            (*dest) = (char*)malloc(2*::Cryptography::SHA::sha256::DIGEST_SIZE+1);
+            (*dest) = (uint8_t*)malloc(2*::Cryptography::SHA::sha256::DIGEST_SIZE+1);
             memcpy((*dest), buf, 2*::Cryptography::SHA::sha256::DIGEST_SIZE+1);
-
             return 2*::Cryptography::SHA::sha256::DIGEST_SIZE+1;
         }
 
