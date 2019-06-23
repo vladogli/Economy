@@ -14,9 +14,9 @@ class RSA {
        mpz_t buf;
        void InitStr(mpz_t& ref, const ::std::string value);
    public:
-       static ::std::string Encrypt(const char* message, const uint64_t size, mpz_t e, mpz_t n);
-       void Decrypt(char*& result, const ::std::string message);
-       RSA(const ::std::string first,const ::std::string second);
+       static uint32_t Encrypt(uint8_t** dest, const uint8_t* message, const uint64_t size, mpz_t e, mpz_t n);
+       uint32_t Decrypt(uint8_t** result, const uint8_t* message);
+       RSA(const ::std::string first, const ::std::string second);
        ~RSA();
 };
 }
