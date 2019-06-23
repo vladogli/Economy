@@ -56,4 +56,9 @@ def generate_prime_number(length=1024):
     while not is_prime(p, 128):
         p = generate_prime_candidate(length)
     return p
-print(generate_prime_number())
+if input("Enter 1 to generate a pair of RSA random prime numbers. Anything else for DSA.") == "1":
+    print(generate_prime_number(1024))
+    print(generate_prime_number(1024))
+else:
+    print(generate_prime_number(3072))
+    print(generate_prime_number(256))
