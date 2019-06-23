@@ -1,5 +1,7 @@
 #include <gmpxx.h>
 #include <string>
+#ifndef DH
+#define DH
 namespace Cryptography {
     namespace DH {
         mpz_t G, P;
@@ -33,3 +35,4 @@ namespace Cryptography {
         };
     }
 }
+#endif
